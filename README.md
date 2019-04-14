@@ -22,8 +22,7 @@ Snodes is a command-line tool for showing the current status of queues and avail
 # clone the repo
 $ git clone https://github.com/zengxiaofei/SGE-scripts.git
 # run snodes.v2
-# cd SGE-script/snodes_v2/
-$ ./snodes.v2
+$ ./snodes/snodes_v2/snodes.v2
 ```
 
 ## snodes.v1
