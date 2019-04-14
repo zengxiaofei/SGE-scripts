@@ -25,13 +25,24 @@ import random
 import getpass
 
 
+def get_multi(unit):
+    if unit == 'G':
+        return 1
+    elif unit == 'M':
+        return 1024
+    elif unit == 'K':
+        return 1024**2
+
+
 def qconf_se(host_name):
-    """get total np and vf settings of each host (qconf -se host_name)"""
+    """get total nproc and vf settings of each host (qconf -se host_name)"""
     for line in os.popen('qconf -se {0}'.format(host_name)):
-        if line.startswith('complex_values'):
-            match = re.match(r'complex_values +'
-                    'num_proc=(\d+),virtual_free=(\d+)G', line)
-            return match.groups()
+        if 'num_proc=' in line:
+            nproc = int(re.match(r'.*num_proc=(\d+)', line).groups()[0])
+        if 'virtual_free=' in line:
+            vf, unit = re.match(r'.*virtual_free=([\d.]+)(\w)', line).groups()
+            vf = float(vf)/get_multi(unit)
+            return nproc, vf
 
 
 def qstat_F():
@@ -193,7 +204,7 @@ def main():
         # %load, swap_used, queue_state, ncpu_total, vmem_total]}
         nproc, vf = qconf_se(queue_host[1])
         if isinstance(stat_list[4], float):
-            stat_list[4] = 100*stat_list[4]/int(nproc)
+            stat_list[4] = 100*stat_list[4]/nproc
         stat_list.extend((nproc, vf))
     print('\033[33m{0:16}{1:13}{2:9}{3:8}{4:9}{5:8}{6:5}\033[0m'.format(
             'Queue','VirtualFree','FreeCPU', 'NJOB', '%LOAD','SWAP', 'States'))
