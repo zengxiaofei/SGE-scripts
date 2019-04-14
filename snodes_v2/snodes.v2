@@ -10,10 +10,9 @@
 \033[42;33m/_____/ |_|  \_| \_____/ |_____/ |_____| /_____/ \033[0m
 \033[42;33mA command-line tool for cluster status monitoring\033[0m
 \033[43;32m . Author  : Xiaofei Zeng                        \033[0m
-\033[43;32m . Email   : zengxiaofei@frasergen.com           \033[0m
-\033[43;32m             xiaofei_zeng@whu.edu.cn             \033[0m
-\033[43;32m . Version : 2.05                                \033[0m
-\033[43;32m . Update  : 2018.8.14                           \033[0m
+\033[43;32m . Email   : xiaofei_zeng@whu.edu.cn             \033[0m
+\033[43;32m . Version : 2.1                                 \033[0m
+\033[43;32m . Update  : 2019.4.14                           \033[0m
 """
 
 from __future__ import print_function
@@ -25,14 +24,18 @@ import argparse
 import random
 import getpass
 
+
 def qconf_se(host_name):
+    """get total np and vf settings of each host (qconf -se host_name)"""
     for line in os.popen('qconf -se {0}'.format(host_name)):
         if line.startswith('complex_values'):
             match = re.match(r'complex_values +'
                     'num_proc=(\d+),virtual_free=(\d+)G', line)
             return match.groups()
 
+
 def qstat_F():
+    """get the status of queues (qstat -F)"""
     queue_stat = collections.defaultdict(list)
     new_host_start, not_first = False, False
     for line in os.popen('qstat -F'):
@@ -96,6 +99,7 @@ def qstat_F():
 
 
 def qstat_explain(abnormal_dict):
+    """get the explainations of queue states (qstat -explain states)"""
     explain_dict = collections.defaultdict(list)
     states_set = {s for s in ''.join(
             set(abnormal_dict.itervalues())) if s in 'acAE'}
@@ -118,6 +122,7 @@ def qstat_explain(abnormal_dict):
 
 
 def qstat_users():
+    """get the users"""
     user_dict = collections.defaultdict(set)
     for line in os.popen("qstat -u \* | awk 'NR>2'"):
         ls = line.split()
@@ -125,7 +130,9 @@ def qstat_users():
             user_dict[ls[7]].add(ls[3])
     return user_dict
 
+
 def log(log_file):
+    """write usage logs"""
     whoami = getpass.getuser()
     date = os.popen('date "+%Y-%m-%d	%H:%M:%S"').read().strip()
     hostname = os.popen('hostname').read()
@@ -134,6 +141,7 @@ def log(log_file):
 
 
 def rank(log_file):
+    """report users and usage"""
     user_dict = collections.defaultdict(int)
     try:
         with open(log_file) as f:
@@ -156,6 +164,7 @@ def rank(log_file):
         print('{0:<4}{1:12}'.format(m+1, user), end='')
         print('\033[42;33m{0}\033[0m{1}'.format(
                 ' '*int(times/bin_size), times))
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -188,8 +197,7 @@ def main():
         stat_list.extend((nproc, vf))
     print('\033[33m{0:16}{1:13}{2:9}{3:8}{4:9}{5:8}{6:5}\033[0m'.format(
             'Queue','VirtualFree','FreeCPU', 'NJOB', '%LOAD','SWAP', 'States'))
-    print('\033[33m------------------------------------'
-          '---------------------------------\033[0m')
+    print('\033[33m'+'-'*69+'\033[0m')
     for queue_host, stat_list in sorted(
             queue_stat.iteritems(), key=lambda x:x[0][1]):
         ## vmem status
@@ -237,8 +245,7 @@ def main():
                       njob_stat, load_stat, swap_stat, stat_list[6]))
     if abnormal_dict:
         user_dict = qstat_users()
-        print('\033[33m-----------------------------------'
-              '----------------------------------\033[0m')
+        print('\033[33m'+'-'*69+'\033[0m')
         explain_dict = qstat_explain(abnormal_dict)
         for queue_host in abnormal_dict:
             print('\033[41;37m{0:69}\033[0m'.format('['+'@'.join(queue_host)+']'))
@@ -247,8 +254,7 @@ def main():
             print('\033[41;37m{1:69}\033[0m'.format(
                     '', '    affected:'+','.join(
                         {user for user in user_dict['@'.join(queue_host)]})))
-    print('\033[33m------------------------------------'
-          '---------------------------------\033[0m')
+    print('\033[33m'+'-'*69+'\033[0m')
     print('\033[33m{0:10}\033[0m\033[32m{1:8}\033[0m'
           '\033[36m{2:8}\033[0m\033[35m{3:8}\033[0m'
           '\033[41;37m{4}\033[0m'.format(
