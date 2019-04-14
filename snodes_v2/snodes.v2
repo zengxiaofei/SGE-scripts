@@ -41,7 +41,7 @@ def qconf_se(host_name):
             nproc = int(re.match(r'.*num_proc=(\d+)', line).groups()[0])
         if 'virtual_free=' in line:
             vf, unit = re.match(r'.*virtual_free=([\d.]+)(\w)', line).groups()
-            vf = float(vf)/get_multi(unit)
+            vf = round(float(vf)/get_multi(unit), 1)
             return nproc, vf
 
 
@@ -212,27 +212,34 @@ def main():
     for queue_host, stat_list in sorted(
             queue_stat.iteritems(), key=lambda x:x[0][1]):
         ## vmem status
-        # no decimal number
-        if stat_list[0] == int(stat_list[0]):
-            vmem_stat = '{0}/{1}G'.format(int(stat_list[0]), stat_list[8])
-        # decimal number
-        else:
-            vmem_stat = '{0}/{1}G'.format(
-                    int(stat_list[0]*10)/10.0, stat_list[8])
+        vmem_stat = '{0}/{1}G'.format(round(stat_list[0], 1), stat_list[8])
+        # # no decimal number
+        # if stat_list[0] == int(stat_list[0]):
+        #     vmem_stat = '{0}/{1}G'.format(int(stat_list[0]), stat_list[8])
+        # # decimal number
+        # else:
+        #     vmem_stat = '{0}/{1}G'.format(
+        #             int(stat_list[0]*10)/10.0, stat_list[8])
         ## ncpu status
         ncpu_stat = '{0}/{1}'.format(stat_list[1], stat_list[7])
         ## njob status
         njob_stat = '{0}/{1}'.format(stat_list[2], stat_list[3])
         ## %load status
-        if isinstance(stat_list[4], float):
-            if stat_list[4] >= 100:
-                load_stat = '[{0:.1f}]'.format(stat_list[4])
-            else:
-                load_stat = '{0:.1f}'.format(stat_list[4])
+        # if isinstance(stat_list[4], float):
+        #     if stat_list[4] >= 100:
+        #         load_stat = '[{0:.1f}]'.format(stat_list[4])
+        #     else:
+        #         load_stat = '{0:.1f}'.format(stat_list[4])
+        # else:
+        #     load_stat = stat_list[4]
+        # if isinstance(stat_list[5], float):
+        #     swap_stat = '{0:.1f}G'.format(stat_list[5])
+        if stat_list[4] >= 100:
+            load_stat = '[{0}]'.format(round(stat_list[4], 1))
         else:
-            load_stat = stat_list[4]
-        if isinstance(stat_list[5], float):
-            swap_stat = '{0:.1f}G'.format(stat_list[5])
+            load_stat = '{0}'.format(round(stat_list[4], 1))
+        # SWAP status
+        swap_stat = '{0}G'.format(round(stat_list[5], 1))
         ## colors
         # queue not normal
         if stat_list[6] != 'Normal':
