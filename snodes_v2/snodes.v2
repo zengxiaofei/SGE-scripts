@@ -10,9 +10,10 @@
 \033[42;33m/_____/ |_|  \_| \_____/ |_____/ |_____| /_____/ \033[0m
 \033[42;33mA command-line tool for cluster status monitoring\033[0m
 \033[43;32m . Author  : Xiaofei Zeng                        \033[0m
-\033[43;32m . Email   : xiaofei_zeng@whu.edu.cn             \033[0m
-\033[43;32m . Version : 2.1                                 \033[0m
-\033[43;32m . Update  : 2019.4.14                           \033[0m
+\033[43;32m . Email   : zengxiaofei@frasergen.com           \033[0m
+\033[43;32m             xiaofei_zeng@whu.edu.cn             \033[0m
+\033[43;32m . Version : 2.05                                \033[0m
+\033[43;32m . Update  : 2018.8.14                           \033[0m
 """
 
 from __future__ import print_function
@@ -24,29 +25,14 @@ import argparse
 import random
 import getpass
 
-
-def get_multi(unit):
-    if unit == 'G':
-        return 1
-    elif unit == 'M':
-        return 1024
-    elif unit == 'K':
-        return 1024**2
-
-
 def qconf_se(host_name):
-    """get total nproc and vf settings of each host (qconf -se host_name)"""
     for line in os.popen('qconf -se {0}'.format(host_name)):
-        if 'num_proc=' in line:
-            nproc = int(re.match(r'.*num_proc=(\d+)', line).groups()[0])
-        if 'virtual_free=' in line:
-            vf, unit = re.match(r'.*virtual_free=([\d.]+)(\w)', line).groups()
-            vf = round(float(vf)/get_multi(unit), 1)
-            return nproc, vf
-
+        if line.startswith('complex_values'):
+            match = re.match(r'complex_values +'
+                    'num_proc=(\d+),virtual_free=(\d+)G', line)
+            return match.groups()
 
 def qstat_F():
-    """get the status of queues (qstat -F)"""
     queue_stat = collections.defaultdict(list)
     new_host_start, not_first = False, False
     for line in os.popen('qstat -F'):
@@ -110,7 +96,6 @@ def qstat_F():
 
 
 def qstat_explain(abnormal_dict):
-    """get the explainations of queue states (qstat -explain states)"""
     explain_dict = collections.defaultdict(list)
     states_set = {s for s in ''.join(
             set(abnormal_dict.itervalues())) if s in 'acAE'}
@@ -133,7 +118,6 @@ def qstat_explain(abnormal_dict):
 
 
 def qstat_users():
-    """get the users"""
     user_dict = collections.defaultdict(set)
     for line in os.popen("qstat -u \* | awk 'NR>2'"):
         ls = line.split()
@@ -141,9 +125,7 @@ def qstat_users():
             user_dict[ls[7]].add(ls[3])
     return user_dict
 
-
 def log(log_file):
-    """write usage logs"""
     whoami = getpass.getuser()
     date = os.popen('date "+%Y-%m-%d	%H:%M:%S"').read().strip()
     hostname = os.popen('hostname').read()
@@ -152,7 +134,6 @@ def log(log_file):
 
 
 def rank(log_file):
-    """report users and usage"""
     user_dict = collections.defaultdict(int)
     try:
         with open(log_file) as f:
@@ -175,7 +156,6 @@ def rank(log_file):
         print('{0:<4}{1:12}'.format(m+1, user), end='')
         print('\033[42;33m{0}\033[0m{1}'.format(
                 ' '*int(times/bin_size), times))
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -204,42 +184,36 @@ def main():
         # %load, swap_used, queue_state, ncpu_total, vmem_total]}
         nproc, vf = qconf_se(queue_host[1])
         if isinstance(stat_list[4], float):
-            stat_list[4] = 100*stat_list[4]/nproc
+            stat_list[4] = 100*stat_list[4]/int(nproc)
         stat_list.extend((nproc, vf))
     print('\033[33m{0:16}{1:13}{2:9}{3:8}{4:9}{5:8}{6:5}\033[0m'.format(
             'Queue','VirtualFree','FreeCPU', 'NJOB', '%LOAD','SWAP', 'States'))
-    print('\033[33m'+'-'*69+'\033[0m')
+    print('\033[33m------------------------------------'
+          '---------------------------------\033[0m')
     for queue_host, stat_list in sorted(
             queue_stat.iteritems(), key=lambda x:x[0][1]):
         ## vmem status
-        vmem_stat = '{0}/{1}G'.format(round(stat_list[0], 1), stat_list[8])
-        # # no decimal number
-        # if stat_list[0] == int(stat_list[0]):
-        #     vmem_stat = '{0}/{1}G'.format(int(stat_list[0]), stat_list[8])
-        # # decimal number
-        # else:
-        #     vmem_stat = '{0}/{1}G'.format(
-        #             int(stat_list[0]*10)/10.0, stat_list[8])
+        # no decimal number
+        if stat_list[0] == int(stat_list[0]):
+            vmem_stat = '{0}/{1}G'.format(int(stat_list[0]), stat_list[8])
+        # decimal number
+        else:
+            vmem_stat = '{0}/{1}G'.format(
+                    int(stat_list[0]*10)/10.0, stat_list[8])
         ## ncpu status
         ncpu_stat = '{0}/{1}'.format(stat_list[1], stat_list[7])
         ## njob status
         njob_stat = '{0}/{1}'.format(stat_list[2], stat_list[3])
         ## %load status
-        # if isinstance(stat_list[4], float):
-        #     if stat_list[4] >= 100:
-        #         load_stat = '[{0:.1f}]'.format(stat_list[4])
-        #     else:
-        #         load_stat = '{0:.1f}'.format(stat_list[4])
-        # else:
-        #     load_stat = stat_list[4]
-        # if isinstance(stat_list[5], float):
-        #     swap_stat = '{0:.1f}G'.format(stat_list[5])
-        if stat_list[4] >= 100:
-            load_stat = '[{0}]'.format(round(stat_list[4], 1))
+        if isinstance(stat_list[4], float):
+            if stat_list[4] >= 100:
+                load_stat = '[{0:.1f}]'.format(stat_list[4])
+            else:
+                load_stat = '{0:.1f}'.format(stat_list[4])
         else:
-            load_stat = '{0}'.format(round(stat_list[4], 1))
-        # SWAP status
-        swap_stat = '{0}G'.format(round(stat_list[5], 1))
+            load_stat = stat_list[4]
+        if isinstance(stat_list[5], float):
+            swap_stat = '{0:.1f}G'.format(stat_list[5])
         ## colors
         # queue not normal
         if stat_list[6] != 'Normal':
@@ -263,7 +237,8 @@ def main():
                       njob_stat, load_stat, swap_stat, stat_list[6]))
     if abnormal_dict:
         user_dict = qstat_users()
-        print('\033[33m'+'-'*69+'\033[0m')
+        print('\033[33m-----------------------------------'
+              '----------------------------------\033[0m')
         explain_dict = qstat_explain(abnormal_dict)
         for queue_host in abnormal_dict:
             print('\033[41;37m{0:69}\033[0m'.format('['+'@'.join(queue_host)+']'))
@@ -272,7 +247,8 @@ def main():
             print('\033[41;37m{1:69}\033[0m'.format(
                     '', '    affected:'+','.join(
                         {user for user in user_dict['@'.join(queue_host)]})))
-    print('\033[33m'+'-'*69+'\033[0m')
+    print('\033[33m------------------------------------'
+          '---------------------------------\033[0m')
     print('\033[33m{0:10}\033[0m\033[32m{1:8}\033[0m'
           '\033[36m{2:8}\033[0m\033[35m{3:8}\033[0m'
           '\033[41;37m{4}\033[0m'.format(
