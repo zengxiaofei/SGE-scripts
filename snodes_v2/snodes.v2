@@ -30,7 +30,10 @@ def qconf_se(host_name):
         if line.startswith('complex_values'):
             match = re.match(r'complex_values +'
                     'num_proc=(\d+),virtual_free=(\d+)G', line)
-            return match.groups()
+            if match:
+                return match.groups()
+            else:
+                raise Exception('Your SGE may be configured uncorrectly!')
 
 def qstat_F():
     queue_stat = collections.defaultdict(list)
